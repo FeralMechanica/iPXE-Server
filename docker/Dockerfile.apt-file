@@ -1,0 +1,39 @@
+
+# Get a fresh Debian image
+FROM debian:stable-slim as debian-current
+
+FROM debian-current as debian-updated
+ARG DEBIAN_FRONTEND=noninteractive 
+ARG version="0.0.1"
+ARG build="unknown"
+LABEL version="$version" \
+      channel="experimental" \
+      maintainer.name="Alex Rakulenko" \
+      maintainer.email="me@rakul.info"
+
+# Stays in the image
+ENV build="$build"
+ENV version="$version"
+
+# Only for the build; need to break the cache of apt layer
+ARG cache_timestamp=1543333330
+
+RUN apt update && \
+  apt upgrade && \
+  apt full-upgrade && \
+  apt install -y bash localepurge && \
+  apt autoremove && \
+  apt clean && \
+  localepurge
+
+ENTRYPOINT [ "/bin/bash" ]
+
+
+# Image for dependencies search
+FROM debian-updated as apt-file
+
+RUN apt install -y apt-file && \
+  apt-file update && \ 
+  dpkg-reconfigure debconf
+
+ENTRYPOINT [ "/usr/bin/apt-file" ]
