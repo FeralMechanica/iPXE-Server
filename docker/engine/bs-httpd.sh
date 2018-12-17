@@ -1,8 +1,6 @@
 #!/bin/bash
 
-source /srv/lib/engine/modules.sh
-declare -gr api=/srv/api
-declare -gr api_ver=v1
+_load_module bash::proc
 
 function _pop_url() {
   echo $url| sed -e 's/\b\// \//' -e 's/^\///'
@@ -46,31 +44,16 @@ function _error() {
   exit $exit_code
 }
 
-function _serve_api() {
-  local -n _url=url
-  local segment
-  read segment url<<<$(_pop_url)
-  [ -z "$segment" ] && _error 400 "URL must start with api version."
-
-  >&2 echo $segment
-  local -n version=segment
-  >&2 echo $version
-  [ $version = $api_ver ] || _error 501 "Only supported api version is v1."
-  while read segment url<<<$(_pop_url); [ ! -z "$segment" ]; do
-    source $api/$api_ver/$segment.sh
-  done
-}
-
 function _http_server() {
+  local -r callback=$1
   local -A headers
   read method url proto
-  echo method: $method, url: $url, proto: $proto
   while read header value; [ ! -z "${value// /}" ]; do
     header=${header//:/}
     value=$(echo "$value"| tr -d '\b\n\r')
     headers[$header]="$value"
   done
-  _serve_api
+  eval "function _get_url() { echo $url; }; $callback"
 }
 
 _http_server
